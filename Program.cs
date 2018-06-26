@@ -18,8 +18,16 @@ namespace TwitchBot
             ChatBot bot = new ChatBot();
             bot.Connect();
 
-            Console.ReadLine();
+            while (true)
+            {
+                Console.ReadLine();
+                if (bot.GetClient().IsConnected == false)
+                {
+                    bot.Connect();
+                }
 
+            }
+            
             bot.Disconnect();
         }
     }

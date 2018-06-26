@@ -21,9 +21,25 @@ namespace TwitchBot
         float m_MonkaWorth = 1.0f;
         float m_TriHardWorth = 3.0f;
 
+        const int m_FinalMessageAmount = 5;
+        int m_CurrentMessageCount = 0;
+
+        bool m_Level5Trigger = false;
+        bool m_Level10Trigger = false;
+        bool m_Level15Trigger = false;
+        bool m_Level25Trigger = false;
+        bool m_Level50Trigger = false;
+        bool m_Level75Trigger = false;
+        bool m_Level100Trigger = false;
+
         public ChatBot()
         {
             m_CurrentMonkaCount = 250;
+        }
+
+        public TwitchClient GetClient()
+        {
+            return m_Client;
         }
 
         internal void Connect()
@@ -42,6 +58,7 @@ namespace TwitchBot
             m_Client.OnMessageReceived += Client_OnMessageRecieved;
 
             m_Client.Connect();
+
 
         }
 
@@ -264,7 +281,13 @@ namespace TwitchBot
             //Check the current amount of monkaS
             if (e.ChatMessage.Message.StartsWith("!MonkaCount"))
             {
-                m_Client.SendMessage(TwitchInfo.ChannelName, "Available MonkaS: " + m_CurrentMonkaCount);
+                //Show a rounded value
+                float temp = m_CurrentMonkaCount;
+                temp *= 2;
+                temp = (float)Math.Round(temp, MidpointRounding.AwayFromZero);
+                temp /= 2;
+
+                m_Client.SendMessage(TwitchInfo.ChannelName, "Available MonkaS: " + temp);
                 return;
             }
 
@@ -412,6 +435,14 @@ namespace TwitchBot
 
                     //m_CurrentMonkaCount--;
                     m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + " has changed the monkaS count! There are " + m_CurrentMonkaCount + " left!");
+                    m_Level5Trigger = false;
+                    m_Level10Trigger = false;
+                    m_Level15Trigger = false;
+                    m_Level25Trigger = false;
+                    m_Level50Trigger = false;
+                    m_Level75Trigger = false;
+                    m_Level100Trigger = false;
+
                     return;
                 }
             }
@@ -419,11 +450,10 @@ namespace TwitchBot
             if (e.ChatMessage.Message.StartsWith("!MonkaCommands") && e.ChatMessage.IsModerator == true || e.ChatMessage.IsBroadcaster == true && e.ChatMessage.Message.StartsWith("!MonkaCommands"))
             {
                 Console.WriteLine("Moderator: " + e.ChatMessage.Username + " asked what the commands were");
-                //TODO: SPLIT INTO 2 PARTS
 
                 m_Client.SendWhisper(e.ChatMessage.Username, e.ChatMessage.Username + " the commands are: !MonkaCount to view the current monka left, !MonkaAdd [number] to add more monka, !MonkaRemove [number] to remove that amount of monka, !MonkaChange [number] to change the amount of monka left,"
-                + " !MonkaMonkaSAmount [number] to increase the limit on monkaS Spam, !MonkaTriHardAmount [number] to increase the limit on TriHard Spam, !MonkaMonkaSWorth [number] to change the value of monkaS, and !MonkaTriHardWorth [number] to change the trihard worth."
-                + " Feel free to PM Piemeup on Twitch or Anolog#6680 on Discord for any questions!");
+                + " !MonkaMonkaSAmount [number] to increase the limit on monkaS Spam, !MonkaTriHardAmount [number] to increase the limit on TriHard Spam,");
+                m_Client.SendWhisper(e.ChatMessage.Username, "!MonkaMonkaSWorth [number] to change the value of monkaS, and !MonkaTriHardWorth [number] to change the trihard worth."+ " Feel free to PM Piemeup on Twitch or Anolog#6680 on Discord for any questions!");
 
                 return;
             }
@@ -446,6 +476,16 @@ namespace TwitchBot
 
                 int triHardTrack = 0;
                 int monkaSTrack = 0;
+
+                if (chatMessage.Length == 0)
+                {
+                    return;
+                }
+
+                else if (chatMessage.Length < 0)
+                {
+                    return;
+                }
 
                 //Check for multiple emotes
                 for (int i = 0; i < chatMessage.Length; i++)
@@ -502,7 +542,11 @@ namespace TwitchBot
                             //double check
                             m_CurrentMonkaCount = 0;
                             //m_Client.SendMessage(TwitchInfo.ChannelName, "WE ARE OUT OF MONKAS/MONKAOMEGA, SPAM MORE TriHard or triGOLD !");
-                            m_Client.SendMessage(TwitchInfo.ChannelName, "WE ARE OUT OF monkaS , SPAM MORE TriHard !");
+                            if (m_CurrentMessageCount != m_FinalMessageAmount)
+                            {
+                                m_CurrentMessageCount++;
+                                m_Client.SendMessage(TwitchInfo.ChannelName, "WE ARE OUT OF monkaS , SPAM MORE TriHard !");
+                            }
 
                             m_Client.TimeoutUser(e.ChatMessage.Username, TimeSpan.FromSeconds(1));
                             return;
@@ -522,87 +566,117 @@ namespace TwitchBot
                 }
             }
 
-            if (m_CurrentMonkaCount == 101)
+            if ((int)m_CurrentMonkaCount == 101 && m_Level100Trigger == false)
             {
                 //Take away for user message
                 m_CurrentMonkaCount--;
 
                 m_Client.SendMessage(TwitchInfo.ChannelName, "100 monkaS left! Don't overuse!");
 
-                //Take away for the bot
-                //m_CurrentMonkaCount--;
-            }
-
-            else if (m_CurrentMonkaCount == 151)
-            {
-                //Take away for user message
-                m_CurrentMonkaCount--;
-
-                m_Client.SendMessage(TwitchInfo.ChannelName, "150 monkaS left! Don't overuse!");
+                m_Level5Trigger = false;
+                m_Level10Trigger = false;
+                m_Level15Trigger = false;
+                m_Level25Trigger = false;
+                m_Level50Trigger = false;
+                m_Level75Trigger = false;
+                m_Level100Trigger = true;
 
                 //Take away for the bot
                 //m_CurrentMonkaCount--;
             }
 
-            else if (m_CurrentMonkaCount == 201)
-            {
-                //Take away for user message
-                m_CurrentMonkaCount--;
-
-                m_Client.SendMessage(TwitchInfo.ChannelName, "200 monkaS left! Don't overuse!");
-
-                //Take away for the bot
-                // m_CurrentMonkaCount--;
-            }
-
-            else if (m_CurrentMonkaCount == 301)
-            {
-                //Take away for user message
-                m_CurrentMonkaCount--;
-
-                m_Client.SendMessage(TwitchInfo.ChannelName, "300 monkaS left! Don't overuse!");
-
-                //Take away for the bot
-                //m_CurrentMonkaCount--;
-            }
-
-
-            else if (m_CurrentMonkaCount == 501)
-            {
-                //Take away for user message
-                 m_CurrentMonkaCount--;
-
-                m_Client.SendMessage(TwitchInfo.ChannelName, "500 monkaS left! Don't overuse!");
-
-                //Take away for the bot
-                //m_CurrentMonkaCount--;
-            }
-
-            else if (m_CurrentMonkaCount == 51)
+            else if ((int)m_CurrentMonkaCount == 51 && m_Level50Trigger == false)
             {
                 m_CurrentMonkaCount--;
                 m_Client.SendMessage(TwitchInfo.ChannelName, "50 monkaS left! Don't overuse!");
                 //m_CurrentMonkaCount--;
+
+                m_Level5Trigger = false;
+                m_Level10Trigger = false;
+                m_Level15Trigger = false;
+                m_Level25Trigger = false;
+                m_Level50Trigger = false;
+                m_Level75Trigger = false;
+                m_Level100Trigger = false;
             }
 
-            else if (m_CurrentMonkaCount == 26)
+            else if ((int)m_CurrentMonkaCount == 76 && m_Level75Trigger == false)
+            {
+                m_CurrentMonkaCount--;
+                m_Client.SendMessage(TwitchInfo.ChannelName, "75 monkaS left! Don't overuse!");
+                //m_CurrentMonkaCount--;
+
+                m_Level5Trigger = false;
+                m_Level10Trigger = false;
+                m_Level15Trigger = false;
+                m_Level25Trigger = false;
+                m_Level50Trigger = false;
+                m_Level75Trigger = true;
+                m_Level100Trigger = false;
+            }
+
+            else if ((int)m_CurrentMonkaCount == 26 && m_Level25Trigger == false)
             {
                 m_CurrentMonkaCount--;
                 m_Client.SendMessage(TwitchInfo.ChannelName, "25 monkaS left! Don't overuse!");
                 //m_CurrentMonkaCount--;
+
+                m_Level5Trigger = false;
+                m_Level10Trigger = false;
+                m_Level15Trigger = false;
+                m_Level25Trigger = true;
+                m_Level50Trigger = false;
+                m_Level75Trigger = false;
+                m_Level100Trigger = false;
             }
 
-            else if (m_CurrentMonkaCount == 11)
+            else if ((int)m_CurrentMonkaCount == 16 && m_Level15Trigger == false)
+            {
+                m_CurrentMonkaCount--;
+                m_Client.SendMessage(TwitchInfo.ChannelName, "15 monkaS left! Don't overuse!");
+                //m_CurrentMonkaCount--;
+
+                m_CurrentMessageCount = 0;
+
+                m_Level5Trigger = false;
+                m_Level10Trigger = false;
+                m_Level15Trigger = true;
+                m_Level25Trigger = false;
+                m_Level50Trigger = false;
+                m_Level75Trigger = false;
+                m_Level100Trigger = false;
+            }
+
+            else if ((int)m_CurrentMonkaCount == 11 && m_Level10Trigger == false)
             {
                 m_CurrentMonkaCount--;
                 m_Client.SendMessage(TwitchInfo.ChannelName, "10 monkaS left! Don't overuse!");
                 //m_CurrentMonkaCount--;
+
+                m_CurrentMessageCount = 0;
+
+                m_Level5Trigger = false;
+                m_Level10Trigger = true;
+                m_Level15Trigger = true;
+                m_Level25Trigger = false;
+                m_Level50Trigger = false;
+                m_Level75Trigger = false;
+                m_Level100Trigger = false;
             }
 
-            else if (m_CurrentMonkaCount == 6)
+            else if ((int)m_CurrentMonkaCount == 6 && m_Level5Trigger == false)
             {
                 m_CurrentMonkaCount--;
                 m_Client.SendMessage(TwitchInfo.ChannelName, "5 monkaS left! Don't overuse!");
+
+                m_Level5Trigger = true;
+                m_Level10Trigger = true;
+                m_Level15Trigger = false;
+                m_Level25Trigger = false;
+                m_Level50Trigger = false;
+                m_Level75Trigger = false;
+                m_Level100Trigger = false;
+
                 // m_CurrentMonkaCount--;
             }
         }
