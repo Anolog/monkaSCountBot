@@ -18,7 +18,7 @@ namespace TwitchBot
 
         public ChatBot()
         {
-            m_CurrentMonkaCount = 20;
+            m_CurrentMonkaCount = 100;
         }
 
         internal void Connect()
@@ -32,11 +32,19 @@ namespace TwitchBot
             m_Client.ChatThrottler.StartQueue();
 
             m_Client.OnLog += Client_OnLog;
+            m_Client.OnConnected += Client_OnConnect;
             m_Client.OnConnectionError += Client_OnConnectionError;
             m_Client.OnMessageReceived += Client_OnMessageRecieved;
 
             m_Client.Connect();
 
+        }
+
+        private void Client_OnConnect(object sender, OnConnectedArgs e)
+        {
+            Console.WriteLine("Started Bot");
+
+            m_Client.SendMessage(TwitchInfo.ChannelName, "monkaS Bot Enabled! There are 100 monkaS remaining. DON'T OVERUSE!");
         }
 
         private void Client_OnMessageRecieved(object sender, OnMessageReceivedArgs e)
@@ -78,6 +86,13 @@ namespace TwitchBot
 
                     if (Int32.TryParse(chatMessage[1], out val))
                     {
+                        if (val > Int32.MaxValue)
+                        {
+                            Console.Write("Moderator " + e.ChatMessage.Username + " tried to give a value higher than max int");
+                            m_Client.SendWhisper(e.ChatMessage.Username, "Total monkaS value exceeds ~2.1 billion, integer error.");
+                            return;
+                        }
+
                         Console.WriteLine("monkaS Val increased by mod: " + e.ChatMessage.Username + " by value: " + val);
                         m_CurrentMonkaCount += val;
 
@@ -227,6 +242,51 @@ namespace TwitchBot
                                 m_CurrentMonkaCount--;
                             }
 
+                            else if (m_CurrentMonkaCount == 152)
+                            {
+                                //Take away for user message
+                                m_CurrentMonkaCount--;
+
+                                m_Client.SendMessage(TwitchInfo.ChannelName, "150 monkaS left! Don't overuse!");
+
+                                //Take away for the bot
+                                m_CurrentMonkaCount--;
+                            }
+
+                            else if (m_CurrentMonkaCount == 202)
+                            {
+                                //Take away for user message
+                                m_CurrentMonkaCount--;
+
+                                m_Client.SendMessage(TwitchInfo.ChannelName, "200 monkaS left! Don't overuse!");
+
+                                //Take away for the bot
+                                m_CurrentMonkaCount--;
+                            }
+
+                            else if (m_CurrentMonkaCount == 302)
+                            {
+                                //Take away for user message
+                                m_CurrentMonkaCount--;
+
+                                m_Client.SendMessage(TwitchInfo.ChannelName, "300 monkaS left! Don't overuse!");
+
+                                //Take away for the bot
+                                m_CurrentMonkaCount--;
+                            }
+
+
+                            else if (m_CurrentMonkaCount == 500)
+                            {
+                                //Take away for user message
+                                m_CurrentMonkaCount--;
+
+                                m_Client.SendMessage(TwitchInfo.ChannelName, "500 monkaS left! Don't overuse!");
+
+                                //Take away for the bot
+                                m_CurrentMonkaCount--;
+                            }
+
                             else if (m_CurrentMonkaCount == 52)
                             {
                                 m_CurrentMonkaCount--;
@@ -291,7 +351,9 @@ namespace TwitchBot
 
         internal void Disconnect()
         {
-            Console.WriteLine("Disconnecting");
+            Console.WriteLine("Ending Bot");
+
+            m_Client.SendMessage(TwitchInfo.ChannelName, "monkaS Bot Disabled!");
         }
     }
 }
