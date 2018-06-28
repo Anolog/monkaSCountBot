@@ -15,19 +15,24 @@ namespace TwitchBot
     {
         static void Main(string[] args)
         {
+            string shutdown = "";
+
             ChatBot bot = new ChatBot();
             bot.Connect();
 
-            while (true)
+            do
             {
-                Console.ReadLine();
+                shutdown = Console.ReadLine();
+
                 if (bot.GetClient().IsConnected == false)
                 {
                     bot.Connect();
                 }
 
-            }
-            
+            } while (shutdown != "exit" || shutdown != "Exit" || shutdown != "quit" || shutdown != "Quit");
+
+            Console.WriteLine("You shouldn't be here. Something broke");
+
             bot.Disconnect();
         }
     }
