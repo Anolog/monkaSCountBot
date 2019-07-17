@@ -7,6 +7,7 @@ using TwitchLib.Client.Models;
 using TwitchLib.Client.Events;
 using TwitchLib.Api.Models.v5.Users;
 using System.Globalization;
+using System.Collections.Generic;
 
 namespace TwitchBot
 {
@@ -15,14 +16,22 @@ namespace TwitchBot
         readonly ConnectionCredentials m_Credentials = new ConnectionCredentials(TwitchInfo.BotUsername, TwitchInfo.BotToken);
         TwitchClient m_Client;
 
+        string m_VersionNumber = "1.3";
+
         static float m_CurrentMonkaCount;
         int m_MaxMonkaS = 10;
         int m_MaxTriHard = 10;
         float m_MonkaWorth = 1.0f;
         float m_TriHardWorth = 3.0f;
 
+        //Emote key, string for if monka or tri
+        Dictionary<string, string> m_EmoteList = new Dictionary<string, string>();
+
         const int m_FinalMessageAmount = 5;
         int m_CurrentMessageCount = 0;
+
+        DateTime m_TimeCanSteal;
+        int m_TimerSecondsReset = 60;
 
         bool m_Level5Trigger = false;
         bool m_Level10Trigger = false;
@@ -36,9 +45,13 @@ namespace TwitchBot
         bool m_FirstTimeConnecting = true;
         bool m_InDebt = false;
 
+        int m_CaveInCounter = 0;
+        float m_CaveInChance = 0.01f;
+
         public ChatBot()
         {
             ResetAllValues();
+            ResetEmotesBeingUsed();
         }
 
         private void ResetAllValues()
@@ -48,6 +61,10 @@ namespace TwitchBot
             m_MonkaWorth = 1.0f;
             m_TriHardWorth = 3.0f;
             m_CurrentMonkaCount = 250;
+            m_TimerSecondsReset = 60;
+
+            m_CaveInChance = 0.01f;
+            m_CaveInCounter = 0;
 
             m_CurrentMessageCount = 0;
 
@@ -60,6 +77,35 @@ namespace TwitchBot
             m_Level100Trigger = false;
 
             m_InDebt = false;
+
+            ResetStealTimer();
+        }
+
+        private void ResetStealTimer()
+        {
+            m_TimeCanSteal = DateTime.Now;
+            m_TimeCanSteal = m_TimeCanSteal.AddSeconds(m_TimerSecondsReset);
+            Console.WriteLine("Time Can Steal Reset To " + m_TimeCanSteal);
+        }
+
+        public void SetStealTimer(DateTime aDateTime)
+        {
+            m_TimeCanSteal = aDateTime;
+        }
+
+        public void SetStealTimer(int aSecondsAhead)
+        {
+            //m_TimeCanSteal = DateTime.Now;
+            //m_TimeCanSteal = m_TimeCanSteal.AddSeconds(Convert.ToDouble(aSecondsAhead));
+            m_TimerSecondsReset = aSecondsAhead;
+            ResetStealTimer();
+        }
+
+        public void ResetEmotesBeingUsed()
+        {
+            m_EmoteList.Clear();
+            m_EmoteList.Add("monkaS", "monkaS");
+            m_EmoteList.Add("TriHard", "TriHard");
         }
 
         public TwitchClient GetClient()
@@ -75,6 +121,38 @@ namespace TwitchBot
         public bool GetEnabled()
         {
             return m_BotEnabled;
+        }
+
+        public void AddMonkaEmote(string aEmoteAdding)
+        {
+            if (!CheckIfEmoteExists(aEmoteAdding))
+            {
+                m_EmoteList.Add(aEmoteAdding, "monkaS");
+            }
+        }
+        public void AddTriHardEmote(string aEmoteAdding)
+        {
+            if (!CheckIfEmoteExists(aEmoteAdding))
+            {
+                m_EmoteList.Add(aEmoteAdding, "TriHard");
+            }
+        }
+
+        public List<string> GetListOfEmotes()
+        {
+            List<string> emoteList = new List<string>();
+
+            foreach (string emoteName in m_EmoteList.Keys)
+            {
+                emoteList.Add(emoteName);
+            }
+
+            return emoteList;
+        }
+
+        public bool CheckIfEmoteExists(string aEmoteToCheck)
+        {
+            return m_EmoteList.ContainsKey(aEmoteToCheck);
         }
 
         internal void Connect()
@@ -108,9 +186,6 @@ namespace TwitchBot
         {
             Console.WriteLine("Started Bot");
 
-            //m_Client.SendMessage(TwitchInfo.ChannelName, "monkaS Bot Enabled! There are 250 monkaS remaining. DON'T OVERUSE! monkaS = -1, monkaOMEGA = -2, TriHard = +1, triGOLD = +3");
-            //m_Client.SendMessage(TwitchInfo.ChannelName, "monkaS Bot Enabled! There are 250 monkaS remaining. DON'T OVERUSE! monkaS = -1, TriHard = +3");
-
             if (m_FirstTimeConnecting == true)
             {
                 m_FirstTimeConnecting = false;
@@ -130,7 +205,7 @@ namespace TwitchBot
                 if (e.ChatMessage.Message.StartsWith("!MonkaEnable") && e.ChatMessage.IsModerator == true || e.ChatMessage.IsBroadcaster == true && e.ChatMessage.Message.StartsWith("!MonkaEnable"))
                 {
                     Console.WriteLine("Bot Enabled By: " + e.ChatMessage.Username);
-                    m_Client.SendMessage(TwitchInfo.ChannelName, "monkaS Bot Enabled! There are " + m_CurrentMonkaCount + " monkaS remaining. DON'T OVERUSE! monkaS = -" + m_MonkaWorth + ", TriHard = +" + m_TriHardWorth + "!");
+                    m_Client.SendMessage(TwitchInfo.ChannelName, "monkaS Bot Enabled! Version " + m_VersionNumber + " There are " + m_CurrentMonkaCount + " monkaS remaining. DON'T OVERUSE! monkaS = -" + m_MonkaWorth + ", TriHard = +" + m_TriHardWorth + "!");
                     m_BotEnabled = true;
                 }
             }
@@ -527,7 +602,7 @@ namespace TwitchBot
 
                         Console.WriteLine(e.ChatMessage.Username + " has put the chat in debt.");
                         m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + " has put the chat in debt. You owe " + val + ". :rage: PAY UP :rage: ");
-                        
+
                         m_CurrentMonkaCount = val;
 
                         m_InDebt = true;
@@ -605,8 +680,249 @@ namespace TwitchBot
                     return;
                 }
 
-                else
+                //More manual type of adding emotes
+                if (e.ChatMessage.Message.StartsWith("!MonkaEmoteAdd") && e.ChatMessage.IsModerator == true || e.ChatMessage.IsBroadcaster == true && e.ChatMessage.Message.StartsWith("!MonkaEmoteAdd"))
                 {
+                    string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
+
+                    if (chatMessage.Length > 2)
+                    {
+                        string emoteToAdd = chatMessage[1].ToString();
+                        string emoteListType = chatMessage[2].ToString();
+                        if (!String.IsNullOrEmpty(emoteToAdd))
+                        {
+                            if (!String.IsNullOrEmpty(emoteListType))
+                            {
+                                if (!CheckIfEmoteExists(emoteToAdd))
+                                {
+                                    if (emoteListType == "monkaS")
+                                    {
+                                        AddMonkaEmote(emoteToAdd);
+                                        m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + " has added the emote " + emoteToAdd + " to be tracked.");
+                                    }
+                                    else if (emoteListType == "TriHard")
+                                    {
+                                        AddTriHardEmote(emoteToAdd);
+                                        m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + " has added the emote " + emoteToAdd + " to be tracked.");
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("Error adding emote to list: " + emoteToAdd + " to " + emoteListType);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    else
+                    {
+                        Console.WriteLine("Error: Could not add emote, message not long enough");
+                    }
+                }
+
+                //Easier way
+                if (e.ChatMessage.Message.StartsWith("!MonkaEmoteAddMonka") && e.ChatMessage.IsModerator == true || e.ChatMessage.Message.StartsWith("!MonkaEmoteAddMonka") && e.ChatMessage.IsBroadcaster == true)
+                {
+                    string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
+
+                    if (chatMessage.Length > 1)
+                    {
+                        string emoteToAdd = chatMessage[1].ToString();
+                        if (!String.IsNullOrEmpty(emoteToAdd))
+                        {
+                            if (!CheckIfEmoteExists(emoteToAdd))
+                            {
+                                AddMonkaEmote(emoteToAdd);
+                                m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + " has added the emote " + emoteToAdd + " to be tracked.");
+                            }
+                        }
+                    }
+                }
+
+                if (e.ChatMessage.Message.StartsWith("!MonkaEmoteAddTriHard") && e.ChatMessage.IsModerator == true || e.ChatMessage.Message.StartsWith("!MonkaEmoteAddTriHard") && e.ChatMessage.IsBroadcaster == true)
+                {
+                    string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
+
+                    if (chatMessage.Length > 1)
+                    {
+                        string emoteToAdd = chatMessage[1].ToString();
+                        if (!String.IsNullOrEmpty(emoteToAdd))
+                        {
+                            if (!CheckIfEmoteExists(emoteToAdd))
+                            {
+                                AddTriHardEmote(emoteToAdd);
+                                m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + " has added the emote " + emoteToAdd + " to be tracked.");
+                            }
+                        }
+                    }
+                }
+
+                if (e.ChatMessage.Message.StartsWith("!MonkaEmoteRemove") && e.ChatMessage.IsModerator == true || e.ChatMessage.Message.StartsWith("!MonkaEmoteRemove") && e.ChatMessage.IsBroadcaster == true)
+                {
+                    string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
+                    if (chatMessage.Length > 1)
+                    {
+                        string emoteToRemove = chatMessage[1].ToString();
+                        if (!String.IsNullOrEmpty(emoteToRemove))
+                        {
+                            if (CheckIfEmoteExists(emoteToRemove))
+                            {
+                                //Move this to a function you fuckwad
+                                m_EmoteList.Remove(emoteToRemove);
+                                m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + " has removed the emote " + emoteToRemove + " from being tracked.");
+                            }
+                        }
+                    }
+                }
+
+                if (e.ChatMessage.Message.StartsWith("!MonkaEmoteListReset") && e.ChatMessage.IsModerator == true || e.ChatMessage.Message.StartsWith("!MonkaEmoteListReset") && e.ChatMessage.IsBroadcaster == true)
+                {
+                    ResetEmotesBeingUsed();
+                    m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + " has reset the emotes being tracked.");
+                }
+
+                if (e.ChatMessage.Message.StartsWith("!MonkaEmoteList"))
+                {
+                    m_Client.SendWhisper(e.ChatMessage.Username, "These are the current emotes being tracked: ");
+
+                    string whisper = "";
+                    for (int i = 0; i < GetListOfEmotes().Count; i++)
+                    {
+                        if (whisper.Length + GetListOfEmotes()[i].Length >= 500)
+                        {
+                            m_Client.SendWhisper(e.ChatMessage.Username, whisper);
+                            whisper = "";
+                        }
+                        else
+                        {
+                            whisper += (" " + GetListOfEmotes()[i]);
+                        }
+                    }
+
+                    m_Client.SendWhisper(e.ChatMessage.Username, whisper);
+
+                }
+
+                if (e.ChatMessage.Message.StartsWith("!MonkaTimer") && e.ChatMessage.IsModerator == true || e.ChatMessage.Message.StartsWith("!MonkaTimer") && e.ChatMessage.IsBroadcaster == true)
+                {
+                    string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
+
+                    if (chatMessage.Length > 1)
+                    {
+                        int amountToChange;
+                        bool parsed = int.TryParse(chatMessage[1].ToString(), out amountToChange);
+
+                        if (parsed)
+                        {
+                            SetStealTimer(amountToChange);
+                            m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + " has set the steal timer to " + amountToChange + " seconds!");
+                        }
+                    }
+                }
+
+                if (e.ChatMessage.Message.StartsWith("!MonkaSteal"))
+                {
+                    string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
+
+                    if (chatMessage.Length > 1)
+                    {
+                        int amountToSteal;
+                        bool parsed = int.TryParse(chatMessage[1].ToString(), out amountToSteal);
+
+                        if (parsed)
+                        {
+                            if (amountToSteal > 0)
+                            {
+                                if (amountToSteal > m_CurrentMonkaCount)
+                                {
+                                    m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + ", you cannot steal more than " + m_CurrentMonkaCount);
+                                }
+                                else
+                                {
+                                    if (DateTime.Now < m_TimeCanSteal)
+                                    {
+                                        TimeSpan timeLeft = m_TimeCanSteal - DateTime.Now;
+                                        m_Client.SendMessage(TwitchInfo.ChannelName, "Cops are all over the place! You can steal again in " + Convert.ToInt32(timeLeft.TotalSeconds) + " seconds!");
+                                    }
+                                    else
+                                    {
+                                        Random randNum = new Random();
+                                        float stealingPercentMessageOutput = amountToSteal / m_CurrentMonkaCount;
+                                        float stealingPercent = amountToSteal / m_CurrentMonkaCount;
+                                        stealingPercent = 1.0f - stealingPercent;
+
+                                        if (stealingPercent <= 0.1f)
+                                        {
+                                            if (randNum.Next(10) == 1)
+                                            {
+                                                stealingPercent = 0.25f;
+                                            }
+                                        }
+
+                                        stealingPercent *= 100;
+
+                                        int numGen = randNum.Next(101);
+
+                                        if (numGen <= stealingPercent)
+                                        {
+                                            //Steal successful
+                                            m_CurrentMonkaCount -= amountToSteal;
+                                            m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + " HAS STOLEN " + amountToSteal + " monkaS with a " + Convert.ToInt32(Math.Floor(stealingPercent)) + "% chance to steal!");
+                                            m_Client.SendMessage(TwitchInfo.ChannelName, "monkaS :point_right: :chart_with_downwards_trend: " + m_CurrentMonkaCount + "LEFT!");
+                                        }
+                                        else
+                                        {
+                                            int timeoutAmount;
+                                            if (amountToSteal >= 100)
+                                            {
+                                                timeoutAmount = 100;
+                                            }
+                                            else
+                                            {
+                                                timeoutAmount = amountToSteal;
+                                            }
+                                            m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + " has been caught trying to steal! They have been jailed for " + Convert.ToInt32(timeoutAmount) + " seconds!");
+                                            m_Client.TimeoutUser(e.ChatMessage.Username, TimeSpan.FromSeconds(Convert.ToInt32(timeoutAmount)), "Timed out for failed stealing.");
+                                        }
+
+                                        if (stealingPercent >= 85f)
+                                        {
+                                            SetStealTimer(30);
+                                        }
+                                        else
+                                        {
+                                            SetStealTimer(Convert.ToInt32(stealingPercent) + randNum.Next(300));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (e.ChatMessage.Message.StartsWith("!MonkaCaveInPercent") && e.ChatMessage.IsModerator == true || e.ChatMessage.IsBroadcaster == true && e.ChatMessage.Message.StartsWith("!MonkaCaveInPercent"))
+                {
+                    string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
+
+                    if (chatMessage.Length > 1)
+                    {
+                        float percentage;
+                        bool parsed = float.TryParse(chatMessage[1].ToString(), out percentage);
+
+                        if (parsed)
+                        {
+                            if (percentage > -1 && percentage < 101)
+                            {
+                                m_CaveInChance = percentage / 100;
+
+                                m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + " has set the cave in chance to " + (m_CaveInChance * 100) + "%");
+                            }
+                        }
+                    }
+                }
+
+                else
+                        {
                     string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
 
                     Console.WriteLine("monkaS Amount: " + m_CurrentMonkaCount);
@@ -628,87 +944,96 @@ namespace TwitchBot
                     for (int i = 0; i < chatMessage.Length; i++)
                     {
 
-                        if (chatMessage[i] == "monkaS")
+                        if (CheckIfEmoteExists(chatMessage[i]))
                         {
-                            monkaSTrack++;
-                        }
-
-                        if (chatMessage[i] == "TriHard")
-                        {
-                            triHardTrack++;
+                            if (m_EmoteList[chatMessage[i]] == "monkaS")
+                            {
+                                monkaSTrack++;
+                            }
+                            else if (m_EmoteList[chatMessage[i]] == "TriHard")
+                            {
+                                triHardTrack++;
+                            }
                         }
 
                         if ((m_MaxMonkaS + 1) == monkaSTrack)
                         {
                             m_Client.TimeoutUser(e.ChatMessage.Username, TimeSpan.FromSeconds(5));
-                            m_Client.SendWhisper(e.ChatMessage.Username, "Automated Message: The emote limit for monkaS is currently " + m_MaxMonkaS + ". Please don't spam more than that. <3");
+                            m_Client.SendWhisper(e.ChatMessage.Username, "Automated Message: The emote limit for monka emotes is currently " + m_MaxMonkaS + ". Please don't spam more than that. <3");
                             return;
                         }
 
                         if ((m_MaxTriHard + 1) == triHardTrack)
                         {
                             m_Client.TimeoutUser(e.ChatMessage.Username, TimeSpan.FromSeconds(5));
-                            m_Client.SendWhisper(e.ChatMessage.Username, "Automated Message: The emote limit for TriHard is currently " + m_MaxTriHard + ". Please don't spam more than that. <3");
+                            m_Client.SendWhisper(e.ChatMessage.Username, "Automated Message: The emote limit for Trihard emotes is currently " + m_MaxTriHard + ". Please don't spam more than that. <3");
                             return;
                         }
                     }
 
                     for (int i = 0; i < chatMessage.Length; i++)
                     {
-                        if (chatMessage[i] == "monkaS" || chatMessage[i] == "monkaOMEGA")
+                        if (CheckIfEmoteExists(chatMessage[i]))
                         {
-                            //m_Client.SendMessage(TwitchInfo.ChannelName, "Current MonkaS Count: " + m_CurrentMonkaCount);
-
-                            if (m_CurrentMonkaCount > 0.0f)
+                            if (m_EmoteList[chatMessage[i]] == "monkaS")
                             {
-                                if (chatMessage[i] == "monkaS")
+                                if (m_CurrentMonkaCount > 0.0f)
                                 {
                                     m_CurrentMonkaCount -= m_MonkaWorth;
                                 }
-
-                                /*
-                                else if (chatMessage[i] == "monkaOMEGA")
+                                else if (m_CurrentMonkaCount <= 0.0f && m_InDebt == false)
                                 {
-                                    m_CurrentMonkaCount -= 2;
+                                    m_CurrentMonkaCount = 0;
+
+                                    if (m_CurrentMessageCount != m_FinalMessageAmount)
+                                    {
+                                        m_CurrentMessageCount++;
+                                        m_Client.SendMessage(TwitchInfo.ChannelName, "WE ARE OUT OF monkaS , SPAM MORE TriHard !");
+                                    }
+
+                                    m_Client.TimeoutUser(e.ChatMessage.Username, TimeSpan.FromSeconds(1));
+                                    return;
+
                                 }
-                                */
-
                             }
-
-                            if (m_CurrentMonkaCount <= 0.0f && m_InDebt == false)
+                            else if (m_EmoteList[chatMessage[i]] == "TriHard")
                             {
-                                //double check
-                                m_CurrentMonkaCount = 0;
-                                //m_Client.SendMessage(TwitchInfo.ChannelName, "WE ARE OUT OF MONKAS/MONKAOMEGA, SPAM MORE TriHard or triGOLD !");
-                                if (m_CurrentMessageCount != m_FinalMessageAmount)
+                                if (m_CurrentMonkaCount >= 0 && m_InDebt == true)
                                 {
-                                    m_CurrentMessageCount++;
-                                    m_Client.SendMessage(TwitchInfo.ChannelName, "WE ARE OUT OF monkaS , SPAM MORE TriHard !");
+                                    m_InDebt = false;
+
+                                    m_Client.SendMessage(TwitchInfo.ChannelName, "WE ARE DEBT FREE TriHard 7");
                                 }
 
-                                m_Client.TimeoutUser(e.ChatMessage.Username, TimeSpan.FromSeconds(1));
-                                return;
+                                m_CurrentMonkaCount += m_TriHardWorth;
                             }
                         }
+                    }
 
-                        else if (chatMessage[i] == "TriHard")
+                    if (chatMessage.Length > 1)
+                    {
+                        if (chatMessage[0] == "TriHard" && chatMessage[1] == ":pick:" || chatMessage[0] == "TriHard" && chatMessage[1] == "⛏")
                         {
-                            if (m_CurrentMonkaCount >= 0 && m_InDebt == true)
+                            m_CaveInCounter++;
+
+                            Random rand = new Random();
+
+                            //float chance = (m_CaveInChance * 100f) * (0.10f * m_CaveInCounter);
+
+                            //m_CaveInChance += m_CaveInChance;
+
+
+                            if (rand.Next(101) <= m_CaveInChance * 100)
                             {
-                                m_InDebt = false;
+                                m_Client.SendMessage(TwitchInfo.ChannelName, "CAVE IN AT THE TRIHARD MINES!!! WE LOST 35% OF OUR MONKAS!");
 
-                                m_Client.SendMessage(TwitchInfo.ChannelName, "WE ARE DEBT FREE TriHard 7");
+                                m_CaveInCounter = 0;
+
+                                int amountToRemove;
+                                amountToRemove = Convert.ToInt32(Math.Floor(m_CurrentMonkaCount * 0.35f));
+                                m_CurrentMonkaCount -= amountToRemove;
                             }
-
-                            m_CurrentMonkaCount += m_TriHardWorth;
-                            
                         }
-                        /*
-                        else if (chatMessage[i] == "triGOLD")
-                        {
-                            m_CurrentMonkaCount += 3;
-                        }
-                        */
                     }
                 }
 
