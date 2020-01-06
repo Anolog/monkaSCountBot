@@ -478,31 +478,30 @@ namespace TwitchBot
 
                         float val;
 
-                        //if (Int32.TryParse(chatMessage[1], out val))
-                        //if (float.TryParse(Convert.ToFloat, val));
-                        val = (float)Convert.ToDouble(chatMessage[1]);
-
-                        if (val < 0)
+                        if (Single.TryParse(chatMessage[1], out val))
                         {
-                            Console.WriteLine("Moderator " + e.ChatMessage.Username + " tried to add monkaS below 0");
-                            m_Client.SendWhisper(e.ChatMessage.Username, "You cannot add a negative number.");
+
+                            if (val < 0)
+                            {
+                                Console.WriteLine("Moderator " + e.ChatMessage.Username + " tried to add monkaS below 0");
+                                m_Client.SendWhisper(e.ChatMessage.Username, "You cannot add a negative number.");
+                                return;
+                            }
+
+                            if (val > Int32.MaxValue)
+                            {
+                                Console.Write("Moderator " + e.ChatMessage.Username + " tried to give a value higher than max int");
+                                m_Client.SendWhisper(e.ChatMessage.Username, "Total monkaS value exceeds ~2.1 billion, integer error.");
+                                return;
+                            }
+
+                            Console.WriteLine("monkaS Val increased by mod: " + e.ChatMessage.Username + " by value: " + val);
+                            m_CurrentMonkaCount += val;
+
+                            //m_CurrentMonkaCount--;
+                            m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + " has increased the monkaS count! There are " + m_CurrentMonkaCount + " left!");
                             return;
                         }
-
-                        if (val > Int32.MaxValue)
-                        {
-                            Console.Write("Moderator " + e.ChatMessage.Username + " tried to give a value higher than max int");
-                            m_Client.SendWhisper(e.ChatMessage.Username, "Total monkaS value exceeds ~2.1 billion, integer error.");
-                            return;
-                        }
-
-                        Console.WriteLine("monkaS Val increased by mod: " + e.ChatMessage.Username + " by value: " + val);
-                        m_CurrentMonkaCount += val;
-
-                        //m_CurrentMonkaCount--;
-                        m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + " has increased the monkaS count! There are " + m_CurrentMonkaCount + " left!");
-                        return;
-
                     }
                 }
 
@@ -527,14 +526,11 @@ namespace TwitchBot
 
                         float val = 0;
 
-                        if (chatMessage[1].GetType() != val.GetType())
+                        if (!Single.TryParse(chatMessage[1], out val))
                         {
                             Console.WriteLine("Error, type not accepted");
                             return;
                         }
-
-                        val = (float)Convert.ToDouble(chatMessage[1]);
-
 
                         if (val < 0)
                         {
@@ -868,7 +864,7 @@ namespace TwitchBot
                                             //Steal successful
                                             m_CurrentMonkaCount -= amountToSteal;
                                             m_Client.SendMessage(TwitchInfo.ChannelName, e.ChatMessage.Username + " HAS STOLEN " + amountToSteal + " monkaS with a " + Convert.ToInt32(Math.Floor(stealingPercent)) + "% chance to steal!");
-                                            m_Client.SendMessage(TwitchInfo.ChannelName, "monkaS :point_right: :chart_with_downwards_trend: " + m_CurrentMonkaCount + "LEFT!");
+                                            m_Client.SendMessage(TwitchInfo.ChannelName, "monkaS 👉 📉 " + m_CurrentMonkaCount + " LEFT!");
                                         }
                                         else
                                         {
