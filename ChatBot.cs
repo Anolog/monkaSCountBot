@@ -16,7 +16,7 @@ namespace TwitchBot
         readonly ConnectionCredentials m_Credentials = new ConnectionCredentials(TwitchInfo.BotUsername, TwitchInfo.BotToken);
         TwitchClient m_Client;
 
-        string m_VersionNumber = "1.3";
+        string m_VersionNumber = "1.3.1";
 
         static float m_CurrentMonkaCount;
         int m_MaxMonkaS = 10;
