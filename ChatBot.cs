@@ -16,7 +16,7 @@ namespace TwitchBot
         readonly ConnectionCredentials m_Credentials = new ConnectionCredentials(TwitchInfo.BotUsername, TwitchInfo.BotToken);
         TwitchClient m_Client;
 
-        string m_VersionNumber = "1.3.1";
+        string m_VersionNumber = "1.4";
 
         static float m_CurrentMonkaCount;
         int m_MaxMonkaS = 10;
@@ -251,7 +251,7 @@ namespace TwitchBot
                     //val = (float)Convert.ToDouble(chatMessage[1]);
                     string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
 
-                    if (chatMessage.Length < 1)
+                    if (chatMessage.Length < 2)
                     {
                         Console.WriteLine("Command did not recieve a value");
                         return;
@@ -267,7 +267,7 @@ namespace TwitchBot
 
                         float val;
 
-                        val = (float)Convert.ToDouble(chatMessage[1]);
+                        val = Single.Parse(chatMessage[1]);
 
                         if (val < 0)
                         {
@@ -278,8 +278,8 @@ namespace TwitchBot
 
                         if (val > Int32.MaxValue)
                         {
-                            Console.Write("Moderator " + e.ChatMessage.Username + " tried to give a value higher than max int");
-                            m_Client.SendWhisper(e.ChatMessage.Username, "Total monkaS value exceeds ~2.1 billion, integer error.");
+                            Console.Write("Moderator " + e.ChatMessage.Username + " tried to give a value higher than max float value");
+                            m_Client.SendWhisper(e.ChatMessage.Username, "Total monkaS value exceeds the maximum float value.");
                             return;
                         }
 
@@ -298,7 +298,7 @@ namespace TwitchBot
                     //val = (float)Convert.ToDouble(chatMessage[1]);
                     string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
 
-                    if (chatMessage.Length < 1)
+                    if (chatMessage.Length < 2)
                     {
                         Console.WriteLine("Command did not recieve a value");
                         return;
@@ -314,7 +314,7 @@ namespace TwitchBot
 
                         float val;
 
-                        val = (float)Convert.ToDouble(chatMessage[1]);
+                        val = Single.Parse(chatMessage[1]);
 
                         if (val < 0)
                         {
@@ -325,8 +325,8 @@ namespace TwitchBot
 
                         if (val > Int32.MaxValue)
                         {
-                            Console.Write("Moderator " + e.ChatMessage.Username + " tried to give a value higher than max int");
-                            m_Client.SendWhisper(e.ChatMessage.Username, "Total monkaS value exceeds ~2.1 billion, integer error.");
+                            Console.Write("Moderator " + e.ChatMessage.Username + " tried to give a value higher than max float value");
+                            m_Client.SendWhisper(e.ChatMessage.Username, "Total monkaS value exceeds the max float value.");
                             return;
                         }
 
@@ -344,7 +344,7 @@ namespace TwitchBot
                 {
                     string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
 
-                    if (chatMessage.Length < 1)
+                    if (chatMessage.Length < 2)
                     {
                         Console.WriteLine("Command did not recieve a value");
                         return;
@@ -396,7 +396,7 @@ namespace TwitchBot
                 {
                     string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
 
-                    if (chatMessage.Length < 1)
+                    if (chatMessage.Length < 2)
                     {
                         Console.WriteLine("Command did not recieve a value");
                         return;
@@ -462,7 +462,7 @@ namespace TwitchBot
                 {
                     string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
 
-                    if (chatMessage.Length < 1)
+                    if (chatMessage.Length < 2)
                     {
                         Console.WriteLine("Command did not recieve a value");
                         return;
@@ -510,7 +510,7 @@ namespace TwitchBot
                 {
                     string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
 
-                    if (chatMessage.Length < 1)
+                    if (chatMessage.Length < 2)
                     {
                         Console.WriteLine("Command did not recieve a value");
                         return;
@@ -571,7 +571,7 @@ namespace TwitchBot
                 {
                     string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
 
-                    if (chatMessage.Length < 1)
+                    if (chatMessage.Length < 2)
                     {
                         Console.WriteLine("Command did not recieve a value");
                         return;
@@ -587,7 +587,7 @@ namespace TwitchBot
 
                         float val;
 
-                        val = (float)Convert.ToDouble(chatMessage[1]);
+                        val = Single.Parse(chatMessage[1]);
 
                         if (val >= 0)
                         {
@@ -611,7 +611,7 @@ namespace TwitchBot
                 {
                     string[] chatMessage = e.ChatMessage.Message.Split(' ', '\t');
 
-                    if (chatMessage.Length < 1)
+                    if (chatMessage.Length < 2)
                     {
                         Console.WriteLine("Command did not recieve a value");
                         return;
@@ -627,12 +627,19 @@ namespace TwitchBot
 
                         float val;
 
-                        val = (float)Convert.ToDouble(chatMessage[1]);
+                        val = Single.Parse(chatMessage[1]);
 
                         if (val < 0)
                         {
                             Console.WriteLine("Moderator " + e.ChatMessage.Username + " tried to change monka to negative");
                             m_Client.SendWhisper(e.ChatMessage.Username, "Sorry but you can't put the chat in debt... cmonBruh");
+                            return;
+                        }
+
+                        if (val > Int32.MaxValue)
+                        {
+                            Console.WriteLine("Moderator " + e.ChatMessage.Username + " tried to change monka to absurd large amount");
+                            m_Client.SendMessage(e.ChatMessage.Username, "Sorry, but the maximum value you can change monkaS too is the max int value of aprox, 2.1 billion, which I do not recommend.");
                             return;
                         }
 
